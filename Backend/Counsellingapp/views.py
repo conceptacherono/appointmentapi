@@ -10,8 +10,10 @@ from django.views.generic import ListView
 import datetime
 from django.template import Context
 from django.template.loader import render_to_string, get_template
+from rest_framework.generics import GenericAPIView
 
-class HomeTemplateView(TemplateView):
+
+class HomeTemplateView(GenericAPIView):
     template_name = "index.html"
     
     def post(self, request):
@@ -30,7 +32,7 @@ class HomeTemplateView(TemplateView):
         return HttpResponse("Email sent successfully!")
 
 
-class AppointmentTemplateView(TemplateView):
+class AppointmentTemplateView(GenericAPIView):
     template_name = "appointment.html"
 
     def post(self, request):
@@ -53,7 +55,7 @@ class AppointmentTemplateView(TemplateView):
         messages.add_message(request, messages.SUCCESS, f"Thanks {fname} for making an appointment, we will email you ASAP!")
         return HttpResponseRedirect(request.path)
 
-class ManageAppointmentTemplateView(ListView):
+class ManageAppointmentTemplateView(GenericAPIView):
     template_name = "manage-appointments.html"
     model = Appointment
     context_object_name = "appointments"
