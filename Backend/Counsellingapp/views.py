@@ -1,7 +1,7 @@
 from django.http.response import HttpResponseRedirect
 from django.shortcuts import render
 from django.http import HttpResponse
-from django.views.generic.base import TemplateView
+
 from django.core.mail import EmailMessage, message
 from django.conf import settings
 from django.contrib import messages
@@ -11,31 +11,12 @@ from .serializer import AppointmentSerializer, MakeAnAppointmentSerializer
 from .models import Accept, Appointment
 from django.views.generic import ListView
 import datetime
-from django.template import Context
 from django.template.loader import render_to_string, get_template
 from rest_framework.generics import GenericAPIView
 from rest_framework import status
 from rest_framework.response import Response
 
-class HomeTemplateView(GenericAPIView):
-    template_name = "index.html"
-    
-    def post(self, request):
-        name = request.POST.get("name")
-        email = request.POST.get("email")
-        message = request.POST.get("message")
-
-        email = EmailMessage(
-            subject= f"{name} from doctor family.",
-            body=message,
-            from_email=settings.EMAIL_HOST_USER,
-            to=[settings.EMAIL_HOST_USER],
-            reply_to=[email]
-        )
-        email.send()
-        return HttpResponse("Email sent successfully!")
-
-
+c
 class AppointmentDetail(GenericAPIView):
     
     serializer_class = MakeAnAppointmentSerializer
