@@ -5,13 +5,17 @@ from django.views.generic.base import TemplateView
 from django.core.mail import EmailMessage, message
 from django.conf import settings
 from django.contrib import messages
-from .models import Appointment
+from itsdangerous import Serializer
+
+from .serializer import AppointmentSerializer, MakeAnAppointmentSerializer
+from .models import Accept, Appointment
 from django.views.generic import ListView
 import datetime
 from django.template import Context
 from django.template.loader import render_to_string, get_template
 from rest_framework.generics import GenericAPIView
-
+from rest_framework import status
+from rest_framework.response import Response
 
 class HomeTemplateView(GenericAPIView):
     template_name = "index.html"
@@ -32,10 +36,15 @@ class HomeTemplateView(GenericAPIView):
         return HttpResponse("Email sent successfully!")
 
 
-class AppointmentTemplateView(GenericAPIView):
-    template_name = "appointment.html"
+class AppointmentDetail(GenericAPIView):
+    
+    serializer_class = MakeAnAppointmentSerializer
+    model = Appointment
+    queryset=Appointment.objects.all()
+
 
     def post(self, request):
+        serializer_class = MakeAnAppointmentSerializer(data=request.data)
         fname = request.POST.get("fname")
         lname = request.POST.get("fname")
         email = request.POST.get("email")
@@ -43,57 +52,51 @@ class AppointmentTemplateView(GenericAPIView):
         message = request.POST.get("request")
 
         appointment = Appointment.objects.create(
-            first_name=fname,
-            last_name=lname,
-            email=email,
-            phone=mobile,
-            request=message,
+            
         )
 
         appointment.save()
+        
+        serializer = MakeAnAppointmentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        messages.add_message(request, messages.SUCCESS, f"Thanks {fname} for making an appointment, we will email you ASAP!")
-        return HttpResponseRedirect(request.path)
+    def get(self, request):
+        appointment=Appointment.objects.all()
+        serializer = MakeAnAppointmentSerializer(appointment, many=True)
+        return Response(serializer.data)
 
-class ManageAppointmentTemplateView(GenericAPIView):
-    template_name = "manage-appointments.html"
-    model = Appointment
-    context_object_name = "appointments"
-    login_required = True
-    paginate_by = 3
+        
 
-
-    def post(self, request):
-        date = request.POST.get("date")
-        appointment_id = request.POST.get("appointment-id")
-        appointment = Appointment.objects.get(id=appointment_id)
-        appointment.accepted = True
-        appointment.accepted_date = datetime.datetime.now()
-        appointment.save()
-
-        data = {
-            "fname":appointment.first_name,
-            "date":date,
-        }
-
-        message = get_template('email.html').render(data)
+class ManageAppointmentDetail(GenericAPIView):
+    serializer_class = AppointmentSerializer
+    def get_object(self, pk):
+        try:
+            return Appointment.objects.get(pk=pk)
+        except Appointment.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+    def get(self, request, pk):
+        appointment= self.get_object(pk)
+        serializer= MakeAnAppointmentSerializer(appointment)
+        return Response(serializer.data)
+    def post(self, request, pk):
+        email = request.POST.get("email")
+        appointment = self.get_object(pk)
+        serializer = AppointmentSerializer(appointment, data=request.data)
+        name = request.POST.get("name")
+        email = request.POST.get("email")
+        appointment= Appointment.objects.all()
         email = EmailMessage(
-            "About your appointment",
-            message,
-            settings.EMAIL_HOST_USER,
-            [appointment.email],
+            subject= f"{name} from doctor family.",
+            body= 'The date of the appointmeent is set to {{date}}.',
+            from_email=settings.EMAIL_HOST_USER,
+            to=email
         )
-        email.content_subtype = "html"
         email.send()
-
-        messages.add_message(request, messages.SUCCESS, f"You accepted the appointment of {appointment.first_name}")
+        messages.add_message(request, messages.SUCCESS, f"You accepted the appointment of ")
         return HttpResponseRedirect(request.path)
 
 
-    def get_context_data(self,*args, **kwargs):
-        context = super().get_context_data(*args, **kwargs)
-        appointments = Appointment.objects.all()
-        context.update({   
-            "title":"Manage Appointments"
-        })
-        return context
+     
